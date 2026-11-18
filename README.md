@@ -45,7 +45,7 @@ Keyboard + mouse, desktop Chrome. Fully offline — every file the game loads is
 ```
 game/
   index.html            page + HUD shell
-  vendor/three.module.min.js   three.js 0.187.0 (vendored)
+  vendor/three.module.min.js   three.js 0.160.0 (vendored, single-file build)
   src/
     main.js             game loop, input, camera, wiring
     city.js             procedural city, road graph, collision
