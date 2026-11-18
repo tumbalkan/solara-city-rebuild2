@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solara City — Open World Crime</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0b1220; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: #f2f4f8; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .panel { position: absolute; background: rgba(8, 14, 26, 0.62); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(2px); }
+  #top-left { top: 14px; left: 14px; min-width: 210px; }
+  #health-row { display: flex; align-items: center; gap: 8px; }
+  #health-bar { flex: 1; height: 12px; background: rgba(255,255,255,0.16); border-radius: 6px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #a3e635); transition: width 0.2s; }
+  #cash { margin-top: 8px; font-size: 20px; font-weight: 700; color: #7ddf8e; letter-spacing: 0.5px; }
+  #mission-box { margin-top: 8px; font-size: 13px; line-height: 1.45; color: #dbe4f0; }
+  #mission-box b { color: #ffd166; }
+  #top-right { top: 14px; right: 14px; text-align: right; }
+  #stars { font-size: 26px; letter-spacing: 3px; color: #ffd166; text-shadow: 0 0 8px rgba(255,209,102,0.6); }
+  #wanted-label { font-size: 11px; letter-spacing: 2px; color: #fda4af; text-transform: uppercase; }
+  #bottom-right { bottom: 14px; right: 14px; text-align: right; min-width: 150px; }
+  #speed { font-size: 34px; font-weight: 800; line-height: 1; }
+  #speed-unit { font-size: 11px; color: #9fb0c9; letter-spacing: 2px; }
+  #ammo { margin-top: 6px; font-size: 16px; color: #e2e8f0; }
+  #ammo b { color: #fff; font-size: 20px; }
+  #minimap-wrap { bottom: 14px; left: 14px; padding: 6px; border-radius: 50%; width: 172px; height: 172px; overflow: hidden; }
+  #minimap { width: 158px; height: 158px; border-radius: 50%; display: block; }
+  #crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 22px; height: 22px; display: none; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,0.9); }
+  #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #crosshair::after { top: 10px; left: 0; height: 2px; width: 22px; }
+  #subtitle { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); max-width: 640px; text-align: center; font-size: 17px; line-height: 1.5; background: rgba(0,0,0,0.55); padding: 10px 18px; border-radius: 8px; display: none; }
+  #subtitle b { color: #ffd166; }
+  #hint { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); font-size: 13px; color: #cbd5e1; background: rgba(0,0,0,0.45); padding: 6px 14px; border-radius: 20px; white-space: nowrap; }
+  #toast { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); font-size: 18px; font-weight: 700; color: #ffd166; text-shadow: 0 2px 10px rgba(0,0,0,0.8); display: none; }
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 35%, rgba(20,40,80,0.88), rgba(4,8,18,0.96)); text-align: center; padding: 24px; }
+  .overlay h1 { font-size: 64px; margin: 0; letter-spacing: 6px; background: linear-gradient(180deg, #ffe08a, #ff8a5c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .overlay h2 { font-size: 16px; font-weight: 400; letter-spacing: 5px; color: #9fb0c9; margin: 6px 0 18px; text-transform: uppercase; }
+  .overlay p { max-width: 560px; line-height: 1.6; color: #cbd5e1; margin: 8px 0; }
+  .overlay .controls { display: grid; grid-template-columns: auto auto; gap: 4px 18px; text-align: left; font-size: 14px; color: #cbd5e1; margin: 14px 0; }
+  .overlay .controls b { color: #fff; }
+  button.big { pointer-events: auto; cursor: pointer; font-size: 20px; font-weight: 700; letter-spacing: 2px; color: #101828; background: linear-gradient(180deg, #ffd166, #ff9f43); border: none; border-radius: 10px; padding: 14px 44px; margin-top: 16px; box-shadow: 0 6px 24px rgba(255,159,67,0.35); }
+  button.big:hover { filter: brightness(1.08); }
+  #pause-menu, #dead-menu { display: none; }
+  #pause-menu h1, #dead-menu h1 { font-size: 44px; }
+  #objective-flash { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 30px; font-weight: 800; color: #fff; text-shadow: 0 3px 18px rgba(0,0,0,0.9); display: none; text-align: center; }
+  #objective-flash small { display: block; font-size: 16px; font-weight: 400; color: #ffd166; margin-top: 6px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud">
+  <div class="panel" id="top-left">
+    <div id="health-row"><span>♥</span><div id="health-bar"><div id="health-fill"></div></div></div>
+    <div id="cash">$0</div>
+    <div id="mission-box">No job yet. Drive to the <b>gold marker</b> to meet Mara.</div>
+  </div>
+  <div class="panel" id="top-right">
+    <div id="stars">☆☆☆☆☆</div>
+    <div id="wanted-label">Clean</div>
+  </div>
+  <div class="panel" id="bottom-right">
+    <div id="speed">0</div>
+    <div id="speed-unit">KM/H</div>
+    <div id="ammo">AMMO <b>∞</b></div>
+  </div>
+  <div class="panel" id="minimap-wrap"><canvas id="minimap" width="316" height="316"></canvas></div>
+  <div id="crosshair"></div>
+  <div id="subtitle"></div>
+  <div id="hint">WASD move · Shift sprint · E enter/exit car · Click shoot · F melee · R reload · Esc pause</div>
+  <div id="toast"></div>
+  <div id="objective-flash"></div>
+</div>
+
+<div class="overlay" id="start-screen">
+  <h1>SOLARA CITY</h1>
+  <h2>An open-world crime story</h2>
+  <p>Rico Vega came to Solara with an empty wallet and a fast right foot. Mara, the fixer who runs the bayfront, has five jobs for him — and the Solara PD has other plans.</p>
+  <p>Steal cars, outrun the law, survive the heat, and take the pier.</p>
+  <div class="controls">
+    <span><b>W A S D</b></span><span>Move / drive</span>
+    <span><b>Mouse</b></span><span>Look around / aim</span>
+    <span><b>Click</b></span><span>Shoot pistol</span>
+    <span><b>E</b></span><span>Enter / exit car</span>
+    <span><b>F</b></span><span>Melee attack</span>
+    <span><b>Shift</b></span><span>Sprint</span>
+    <span><b>Space</b></span><span>Handbrake / drift</span>
+    <span><b>R</b></span><span>Reload</span>
+  </div>
+  <button class="big" id="play-btn">PLAY</button>
+  <p id="save-note" style="font-size:13px;color:#8fa3bf"></p>
+</div>
+
+<div class="overlay" id="pause-menu">
+  <h1>PAUSED</h1>
+  <p>Progress saves automatically. Take a breath — Solara waits.</p>
+  <button class="big" id="resume-btn">RESUME</button>
+</div>
+
+<div class="overlay" id="dead-menu">
+  <h1>BUSTED UP</h1>
+  <p id="dead-text">Rico went down. The clinic patched him up — for a price.</p>
+  <button class="big" id="respawn-btn">GET BACK UP</button>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
